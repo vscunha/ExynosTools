@@ -1,0 +1,17 @@
+[binaries]
+c = ['/home/vscunha/android-ndk-r26d/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android31-clang']
+cpp = ['/home/vscunha/android-ndk-r26d/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android31-clang++']
+ar = ['/home/vscunha/android-ndk-r26d/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar']
+strip = ['/home/vscunha/android-ndk-r26d/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip']
+pkgconfig = ['false']
+
+[host_machine]
+system = 'android'
+cpu_family = 'aarch64'
+cpu = 'armv8'
+endian = 'little'
+
+[properties]
+sys_root = '/home/vscunha/android-ndk-r26d/toolchains/llvm/prebuilt/linux-x86_64/sysroot'
+c_args = ['-fPIC']
+c_link_args = ['-llog']

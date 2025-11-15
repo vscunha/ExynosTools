@@ -13,6 +13,7 @@
 #include "perf_conf.h"
 #include "app_profile.h"
 #include "hud.h"
+#include "vk_funcs.h"
 
 // Lazy loader state
 static pthread_once_t g_loader_once = PTHREAD_ONCE_INIT;
@@ -180,6 +181,9 @@ VKAPI_ATTR VkResult VKAPI_CALL vkCreateDevice(VkPhysicalDevice physicalDevice, c
     VkResult r = real_vkCreateDevice(physicalDevice, pCreateInfo, pAllocator, pDevice);
     if (r == VK_SUCCESS) {
         resolve_device_entrypoints(*pDevice);
+        
+        // Load Vulkan functions for bc_emulate module
+        xeno_load_vulkan_funcs(real_vkGetDeviceProcAddr, *pDevice);
         
         // Initialize BCn context for Xclipse GPUs
         XenoDetectConfig dcfg; 

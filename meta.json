@@ -1,0 +1,6 @@
+{
+  "name": "ExynosTools Custom Build",
+  "version": "1.3.0-dev",
+  "arch": ["arm64-v8a"],
+  "description": "Custom Vulkan wrapper for Xclipse GPUs: BC4/BC5 texture format support with compute shader decompression"
+}

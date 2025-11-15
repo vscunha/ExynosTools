@@ -1,0 +1,24 @@
+{
+    "file_format_version": "1.2.0",
+    "layer": {
+        "name": "VK_LAYER_EXYNOS_tools",
+        "type": "GLOBAL",
+        "library_path": "libxeno_wrapper.so",
+        "api_version": "1.3.250",
+        "implementation_version": "1",
+        "description": "Vulkan wrapper for Xclipse GPUs with BCn emulation and feature patching",
+        "introduction": "ExynosTools provides Vulkan feature enhancements, BC4/BC5 texture compression emulation, and performance optimizations for Samsung Exynos Xclipse GPUs.",
+        "functions": {
+            "vkGetInstanceProcAddr": "xeno_vkGetInstanceProcAddr",
+            "vkGetDeviceProcAddr": "xeno_vkGetDeviceProcAddr"
+        },
+        "instance_extensions": [],
+        "device_extensions": [],
+        "enable_environment": {
+            "ENABLE_EXYNOSTOOLS": "1"
+        },
+        "disable_environment": {
+            "DISABLE_EXYNOSTOOLS": "1"
+        }
+    }
+}

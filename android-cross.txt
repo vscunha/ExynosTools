@@ -1,0 +1,17 @@
+[binaries]
+c = ['ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android31-clang']
+cpp = ['ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android31-clang++']
+ar = ['ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar']
+strip = ['ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip']
+pkgconfig = ['false']
+
+[host_machine]
+system = 'android'
+cpu_family = 'aarch64'
+cpu = 'armv8'
+endian = 'little'
+
+[properties]
+sys_root = 'ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/sysroot'
+c_args = ['-fPIC']
+c_link_args = ['-llog']

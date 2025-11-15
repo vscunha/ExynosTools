@@ -15,7 +15,13 @@ echo "🔨 Compiling libxeno_wrapper.so..."
 gcc -shared -fPIC -O2 -DNDEBUG \
     -I./src \
     -o build/libxeno_wrapper.so \
-    src/*.c \
+    src/xeno_wrapper.c \
+    src/bc_emulate.c \
+    src/features_patch.c \
+    src/detect.c \
+    src/perf_conf.c \
+    src/logging.c \
+    src/app_profile.c \
     -lvulkan -lm -ldl
 
 # Verify binary is not empty (critical check)
