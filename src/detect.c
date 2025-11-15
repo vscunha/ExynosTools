@@ -1,9 +1,6 @@
-#define VK_NO_PROTOTYPES
-#include <vulkan/vulkan.h>
 #include "logging.h"
 #include "detect.h"
 #include <string.h>
-#include <dlfcn.h>
 
 // Known Samsung vendor ID and Xclipse device IDs
 #define VENDOR_ID_SAMSUNG 0x144D
@@ -41,22 +38,8 @@ int xeno_is_xclipse_gpu(VkPhysicalDevice phys, const XenoDetectConfig* cfg) {
         return 0;
     }
 
-    // Load vkGetPhysicalDeviceProperties dynamically
-    static PFN_vkGetPhysicalDeviceProperties real_vkGetPhysicalDeviceProperties = NULL;
-    if (!real_vkGetPhysicalDeviceProperties) {
-        void* handle = dlopen("libvulkan.so", RTLD_LAZY | RTLD_LOCAL);
-        if (!handle) handle = dlopen("libvulkan.so.1", RTLD_LAZY | RTLD_LOCAL);
-        if (handle) {
-            real_vkGetPhysicalDeviceProperties = (PFN_vkGetPhysicalDeviceProperties)dlsym(handle, "vkGetPhysicalDeviceProperties");
-        }
-        if (!real_vkGetPhysicalDeviceProperties) {
-            XENO_LOGE("detect: Failed to load vkGetPhysicalDeviceProperties");
-            return 0;
-        }
-    }
-
     VkPhysicalDeviceProperties props;
-    real_vkGetPhysicalDeviceProperties(phys, &props);
+    vkGetPhysicalDeviceProperties(phys, &props);
 
     XENO_LOGD("detect: vendorID=0x%04x deviceID=0x%04x deviceName=%s",
               props.vendorID, props.deviceID, props.deviceName);

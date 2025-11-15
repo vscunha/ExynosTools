@@ -1,19 +1,8 @@
-#define VK_NO_PROTOTYPES
-#include <vulkan/vulkan.h>
 #include "logging.h"
 #include "bc_emulate.h"
-#include "vk_funcs.h"
+#include "bc4_shader.h"
+#include "bc5_shader.h"
 #include <string.h>
-
-// Include generated shader bytecode
-#include "../build/generated/shaders/bc4_shader.h"
-#include "../build/generated/shaders/bc5_shader.h"
-
-// Map the generated variable names to simpler names
-#define bc4_shader_spv _home_vscunha_projects_ExynosTools_build_shaders_bc4_shader_spv
-#define bc4_shader_spv_len _home_vscunha_projects_ExynosTools_build_shaders_bc4_shader_spv_len
-#define bc5_shader_spv _home_vscunha_projects_ExynosTools_build_shaders_bc5_shader_spv
-#define bc5_shader_spv_len _home_vscunha_projects_ExynosTools_build_shaders_bc5_shader_spv_len
 
 static VkResult create_shader_module(VkDevice device, const unsigned char* code, 
                                    unsigned int code_len, VkShaderModule* module) {
@@ -22,7 +11,7 @@ static VkResult create_shader_module(VkDevice device, const unsigned char* code,
         .codeSize = code_len,
         .pCode = (const uint32_t*)code
     };
-    return g_vk_funcs.vkCreateShaderModule(device, &createInfo, NULL, module);
+    return vkCreateShaderModule(device, &createInfo, NULL, module);
 }
 
 static VkResult create_descriptor_set_layout(VkDevice device, VkDescriptorSetLayout* layout) {
@@ -47,7 +36,7 @@ static VkResult create_descriptor_set_layout(VkDevice device, VkDescriptorSetLay
         .pBindings = bindings
     };
     
-    return g_vk_funcs.vkCreateDescriptorSetLayout(device, &layoutInfo, NULL, layout);
+    return vkCreateDescriptorSetLayout(device, &layoutInfo, NULL, layout);
 }
 
 static VkResult create_pipeline_layout(VkDevice device, VkDescriptorSetLayout descriptorSetLayout,
@@ -66,7 +55,7 @@ static VkResult create_pipeline_layout(VkDevice device, VkDescriptorSetLayout de
         .pPushConstantRanges = &pushConstantRange
     };
     
-    return g_vk_funcs.vkCreatePipelineLayout(device, &pipelineLayoutInfo, NULL, pipelineLayout);
+    return vkCreatePipelineLayout(device, &pipelineLayoutInfo, NULL, pipelineLayout);
 }
 
 static VkResult create_compute_pipeline(VkDevice device, VkShaderModule shaderModule,
@@ -83,7 +72,7 @@ static VkResult create_compute_pipeline(VkDevice device, VkShaderModule shaderMo
         .layout = pipelineLayout
     };
     
-    return g_vk_funcs.vkCreateComputePipelines(device, pipelineCache, 1, &pipelineInfo, NULL, pipeline);
+    return vkCreateComputePipelines(device, pipelineCache, 1, &pipelineInfo, NULL, pipeline);
 }
 
 XenoBCContext* xeno_bc_create_context(VkDevice device, VkPhysicalDevice phys) {
@@ -102,31 +91,25 @@ XenoBCContext* xeno_bc_create_context(VkDevice device, VkPhysicalDevice phys) {
     VkPipelineCacheCreateInfo cacheInfo = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO
     };
-    result = g_vk_funcs.vkCreatePipelineCache(device, &cacheInfo, NULL, &ctx->pipelineCache);
+    result = vkCreatePipelineCache(device, &cacheInfo, NULL, &ctx->pipelineCache);
     if (result != VK_SUCCESS) {
-        XENO_LOGE("bc_emulate: failed to create pipeline cache: VkResult=%d", result);
+        XENO_LOGE("bc_emulate: failed to create pipeline cache: %d", result);
         goto cleanup;
     }
-    
-    XENO_LOGD("bc_emulate: pipeline cache created");
     
     // Create descriptor set layout
     result = create_descriptor_set_layout(device, &ctx->descriptorSetLayout);
     if (result != VK_SUCCESS) {
-        XENO_LOGE("bc_emulate: failed to create descriptor set layout: VkResult=%d", result);
+        XENO_LOGE("bc_emulate: failed to create descriptor set layout: %d", result);
         goto cleanup;
     }
-    
-    XENO_LOGD("bc_emulate: descriptor set layout created");
     
     // Create pipeline layout
     result = create_pipeline_layout(device, ctx->descriptorSetLayout, &ctx->pipelineLayout);
     if (result != VK_SUCCESS) {
-        XENO_LOGE("bc_emulate: failed to create pipeline layout: VkResult=%d", result);
+        XENO_LOGE("bc_emulate: failed to create pipeline layout: %d", result);
         goto cleanup;
     }
-    
-    XENO_LOGD("bc_emulate: pipeline layout created");
     
     // Create descriptor pool
     VkDescriptorPoolSize poolSizes[2] = {
@@ -142,13 +125,11 @@ XenoBCContext* xeno_bc_create_context(VkDevice device, VkPhysicalDevice phys) {
         .pPoolSizes = poolSizes
     };
     
-    result = g_vk_funcs.vkCreateDescriptorPool(device, &poolInfo, NULL, &ctx->descriptorPool);
+    result = vkCreateDescriptorPool(device, &poolInfo, NULL, &ctx->descriptorPool);
     if (result != VK_SUCCESS) {
-        XENO_LOGE("bc_emulate: failed to create descriptor pool: VkResult=%d", result);
+        XENO_LOGE("bc_emulate: failed to create descriptor pool: %d", result);
         goto cleanup;
     }
-    
-    XENO_LOGD("bc_emulate: descriptor pool created");
     
     // Initialize pipelines array
     for (int i = 0; i < XENO_BC_FORMAT_COUNT; i++) {
@@ -159,41 +140,33 @@ XenoBCContext* xeno_bc_create_context(VkDevice device, VkPhysicalDevice phys) {
     VkShaderModule bc4Module;
     result = create_shader_module(device, bc4_shader_spv, bc4_shader_spv_len, &bc4Module);
     if (result != VK_SUCCESS) {
-        XENO_LOGE("bc_emulate: failed to create BC4 shader module: VkResult=%d", result);
+        XENO_LOGE("bc_emulate: failed to create BC4 shader module: %d", result);
         goto cleanup;
     }
-    
-    XENO_LOGD("bc_emulate: BC4 shader module created (size=%u bytes)", bc4_shader_spv_len);
     
     result = create_compute_pipeline(device, bc4Module, ctx->pipelineLayout, 
                                    ctx->pipelineCache, &ctx->pipelines[XENO_BC4]);
-    g_vk_funcs.vkDestroyShaderModule(device, bc4Module, NULL);
+    vkDestroyShaderModule(device, bc4Module, NULL);
     if (result != VK_SUCCESS) {
-        XENO_LOGE("bc_emulate: failed to create BC4 pipeline: VkResult=%d", result);
+        XENO_LOGE("bc_emulate: failed to create BC4 pipeline: %d", result);
         goto cleanup;
     }
-    
-    XENO_LOGI("bc_emulate: BC4 pipeline created successfully");
     
     // Create BC5 pipeline
     VkShaderModule bc5Module;
     result = create_shader_module(device, bc5_shader_spv, bc5_shader_spv_len, &bc5Module);
     if (result != VK_SUCCESS) {
-        XENO_LOGE("bc_emulate: failed to create BC5 shader module: VkResult=%d", result);
+        XENO_LOGE("bc_emulate: failed to create BC5 shader module: %d", result);
         goto cleanup;
     }
-    
-    XENO_LOGD("bc_emulate: BC5 shader module created (size=%u bytes)", bc5_shader_spv_len);
     
     result = create_compute_pipeline(device, bc5Module, ctx->pipelineLayout, 
                                    ctx->pipelineCache, &ctx->pipelines[XENO_BC5]);
-    g_vk_funcs.vkDestroyShaderModule(device, bc5Module, NULL);
+    vkDestroyShaderModule(device, bc5Module, NULL);
     if (result != VK_SUCCESS) {
-        XENO_LOGE("bc_emulate: failed to create BC5 pipeline: VkResult=%d", result);
+        XENO_LOGE("bc_emulate: failed to create BC5 pipeline: %d", result);
         goto cleanup;
     }
-    
-    XENO_LOGI("bc_emulate: BC5 pipeline created successfully");
     
     ctx->initialized = 1;
     XENO_LOGI("bc_emulate: context created successfully with BC4/BC5 support");
@@ -210,24 +183,24 @@ void xeno_bc_destroy_context(XenoBCContext* ctx) {
     if (ctx->device) {
         for (int i = 0; i < XENO_BC_FORMAT_COUNT; i++) {
             if (ctx->pipelines[i] != VK_NULL_HANDLE) {
-                g_vk_funcs.vkDestroyPipeline(ctx->device, ctx->pipelines[i], NULL);
+                vkDestroyPipeline(ctx->device, ctx->pipelines[i], NULL);
             }
         }
         
         if (ctx->descriptorPool != VK_NULL_HANDLE) {
-            g_vk_funcs.vkDestroyDescriptorPool(ctx->device, ctx->descriptorPool, NULL);
+            vkDestroyDescriptorPool(ctx->device, ctx->descriptorPool, NULL);
         }
         
         if (ctx->pipelineLayout != VK_NULL_HANDLE) {
-            g_vk_funcs.vkDestroyPipelineLayout(ctx->device, ctx->pipelineLayout, NULL);
+            vkDestroyPipelineLayout(ctx->device, ctx->pipelineLayout, NULL);
         }
         
         if (ctx->descriptorSetLayout != VK_NULL_HANDLE) {
-            g_vk_funcs.vkDestroyDescriptorSetLayout(ctx->device, ctx->descriptorSetLayout, NULL);
+            vkDestroyDescriptorSetLayout(ctx->device, ctx->descriptorSetLayout, NULL);
         }
         
         if (ctx->pipelineCache != VK_NULL_HANDLE) {
-            g_vk_funcs.vkDestroyPipelineCache(ctx->device, ctx->pipelineCache, NULL);
+            vkDestroyPipelineCache(ctx->device, ctx->pipelineCache, NULL);
         }
     }
     
@@ -245,14 +218,9 @@ VkResult xeno_bc_decode_image(VkCommandBuffer cmd,
     }
     
     if (format >= XENO_BC_FORMAT_COUNT || ctx->pipelines[format] == VK_NULL_HANDLE) {
-        XENO_LOGE("bc_emulate: unsupported format requested: %d", format);
+        XENO_LOGE("bc_emulate: unsupported format %d", format);
         return VK_ERROR_FORMAT_NOT_SUPPORTED;
     }
-    
-    // Log which texture is being decoded
-    const char* format_name = (format == XENO_BC4) ? "BC4" : (format == XENO_BC5) ? "BC5" : "UNKNOWN";
-    XENO_LOGI("bc_emulate: Decoding texture %dx%d using format %s (id=%d)", 
-              extent.width, extent.height, format_name, format);
     
     // Pre-dispatch barrier: transition image to general layout
     VkImageMemoryBarrier preBarrier = {
@@ -273,11 +241,11 @@ VkResult xeno_bc_decode_image(VkCommandBuffer cmd,
         }
     };
     
-    g_vk_funcs.vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 
+    vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 
                         VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 0, NULL, 0, NULL, 1, &preBarrier);
     
     // Bind pipeline
-    g_vk_funcs.vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, ctx->pipelines[format]);
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, ctx->pipelines[format]);
     
     // Allocate descriptor set
     VkDescriptorSetAllocateInfo allocInfo = {
@@ -288,9 +256,9 @@ VkResult xeno_bc_decode_image(VkCommandBuffer cmd,
     };
     
     VkDescriptorSet descriptorSet;
-    VkResult result = g_vk_funcs.vkAllocateDescriptorSets(ctx->device, &allocInfo, &descriptorSet);
+    VkResult result = vkAllocateDescriptorSets(ctx->device, &allocInfo, &descriptorSet);
     if (result != VK_SUCCESS) {
-        XENO_LOGE("bc_emulate: failed to allocate descriptor set: VkResult=%d", result);
+        XENO_LOGE("bc_emulate: failed to allocate descriptor set: %d", result);
         return result;
     }
     
@@ -310,9 +278,9 @@ VkResult xeno_bc_decode_image(VkCommandBuffer cmd,
     };
     
     VkImageView imageView;
-    result = g_vk_funcs.vkCreateImageView(ctx->device, &viewInfo, NULL, &imageView);
+    result = vkCreateImageView(ctx->device, &viewInfo, NULL, &imageView);
     if (result != VK_SUCCESS) {
-        XENO_LOGE("bc_emulate: failed to create image view: VkResult=%d", result);
+        XENO_LOGE("bc_emulate: failed to create image view: %d", result);
         return result;
     }
     
@@ -349,10 +317,10 @@ VkResult xeno_bc_decode_image(VkCommandBuffer cmd,
         }
     };
     
-    g_vk_funcs.vkUpdateDescriptorSets(ctx->device, 2, descriptorWrites, 0, NULL);
+    vkUpdateDescriptorSets(ctx->device, 2, descriptorWrites, 0, NULL);
     
     // Bind descriptor set
-    g_vk_funcs.vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, ctx->pipelineLayout, 
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, ctx->pipelineLayout, 
                            0, 1, &descriptorSet, 0, NULL);
     
     // Push constants
@@ -363,22 +331,13 @@ VkResult xeno_bc_decode_image(VkCommandBuffer cmd,
         0  // padding
     };
     
-    // Log block calculation details
-    uint32_t blocksPerRow = pushConstants[2];
-    XENO_LOGD("bc_emulate: Block calculation - blocksPerRow=%u, blocks=%ux%u", 
-              blocksPerRow, (extent.width + 3) / 4, (extent.height + 3) / 4);
-    
-    g_vk_funcs.vkCmdPushConstants(cmd, ctx->pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 
+    vkCmdPushConstants(cmd, ctx->pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 
                       0, sizeof(pushConstants), pushConstants);
     
     // Dispatch compute shader
     uint32_t groupsX = (extent.width + 3) / 4;
     uint32_t groupsY = (extent.height + 3) / 4;
-    
-    XENO_LOGD("bc_emulate: Dispatching compute shader for %u total blocks (%ux%u groups)", 
-              groupsX * groupsY, groupsX, groupsY);
-    
-    g_vk_funcs.vkCmdDispatch(cmd, groupsX, groupsY, 1);
+    vkCmdDispatch(cmd, groupsX, groupsY, 1);
     
     // Post-dispatch barrier: transition to shader read-only
     VkImageMemoryBarrier postBarrier = {
@@ -399,16 +358,13 @@ VkResult xeno_bc_decode_image(VkCommandBuffer cmd,
         }
     };
     
-    g_vk_funcs.vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 
+    vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 
                         VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, NULL, 0, NULL, 1, &postBarrier);
     
     // Clean up image view (descriptor set will be freed when pool is reset)
-    g_vk_funcs.vkDestroyImageView(ctx->device, imageView, NULL);
+    vkDestroyImageView(ctx->device, imageView, NULL);
     
-    // Log success with checkmark
-    XENO_LOGI("bc_emulate: ✓ Successfully decompressed %dx%d texture (format=%s)", 
-              extent.width, extent.height, format_name);
-    
+    XENO_LOGD("bc_emulate: decoded %dx%d texture using format %d", extent.width, extent.height, format);
     return VK_SUCCESS;
 }
 

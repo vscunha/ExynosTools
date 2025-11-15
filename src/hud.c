@@ -1,12 +1,8 @@
-#define VK_NO_PROTOTYPES
-#include <vulkan/vulkan.h>
 #include "hud.h"
 #include "logging.h"
-#include "vk_funcs.h"
 #include <string.h>
 #include <math.h>
 #include <time.h>
-#include <dlfcn.h>
 
 // Simple 8x8 bitmap font data (embedded)
 static const unsigned char font_bitmap[128][8] = {
@@ -95,7 +91,7 @@ static VkResult create_font_texture(XenoHUDContext* ctx) {
         .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED
     };
     
-    result = g_vk_funcs.vkCreateImage(ctx->device, &imageInfo, NULL, &ctx->fontImage);
+    result = vkCreateImage(ctx->device, &imageInfo, NULL, &ctx->fontImage);
     if (result != VK_SUCCESS) {
         free(fontData);
         return result;
@@ -103,26 +99,10 @@ static VkResult create_font_texture(XenoHUDContext* ctx) {
     
     // Allocate memory for image
     VkMemoryRequirements memReqs;
-    g_vk_funcs.vkGetImageMemoryRequirements(ctx->device, ctx->fontImage, &memReqs);
-    
-    // Load vkGetPhysicalDeviceMemoryProperties dynamically (instance function)
-    static PFN_vkGetPhysicalDeviceMemoryProperties real_vkGetPhysicalDeviceMemoryProperties = NULL;
-    if (!real_vkGetPhysicalDeviceMemoryProperties) {
-        void* handle = dlopen("libvulkan.so", RTLD_LAZY | RTLD_LOCAL);
-        if (!handle) handle = dlopen("libvulkan.so.1", RTLD_LAZY | RTLD_LOCAL);
-        if (handle) {
-            real_vkGetPhysicalDeviceMemoryProperties = (PFN_vkGetPhysicalDeviceMemoryProperties)dlsym(handle, "vkGetPhysicalDeviceMemoryProperties");
-        }
-    }
+    vkGetImageMemoryRequirements(ctx->device, ctx->fontImage, &memReqs);
     
     VkPhysicalDeviceMemoryProperties memProps;
-    if (real_vkGetPhysicalDeviceMemoryProperties) {
-        real_vkGetPhysicalDeviceMemoryProperties(ctx->physicalDevice, &memProps);
-    } else {
-        XENO_LOGE("hud: Failed to load vkGetPhysicalDeviceMemoryProperties");
-        free(fontData);
-        return VK_ERROR_INITIALIZATION_FAILED;
-    }
+    vkGetPhysicalDeviceMemoryProperties(ctx->physicalDevice, &memProps);
     
     uint32_t memoryTypeIndex = UINT32_MAX;
     for (uint32_t i = 0; i < memProps.memoryTypeCount; i++) {
@@ -144,13 +124,13 @@ static VkResult create_font_texture(XenoHUDContext* ctx) {
         .memoryTypeIndex = memoryTypeIndex
     };
     
-    result = g_vk_funcs.vkAllocateMemory(ctx->device, &allocInfo, NULL, &ctx->fontImageMemory);
+    result = vkAllocateMemory(ctx->device, &allocInfo, NULL, &ctx->fontImageMemory);
     if (result != VK_SUCCESS) {
         free(fontData);
         return result;
     }
     
-    g_vk_funcs.vkBindImageMemory(ctx->device, ctx->fontImage, ctx->fontImageMemory, 0);
+    vkBindImageMemory(ctx->device, ctx->fontImage, ctx->fontImageMemory, 0);
     
     // Create image view
     VkImageViewCreateInfo viewInfo = {
@@ -167,7 +147,7 @@ static VkResult create_font_texture(XenoHUDContext* ctx) {
         }
     };
     
-    result = g_vk_funcs.vkCreateImageView(ctx->device, &viewInfo, NULL, &ctx->fontImageView);
+    result = vkCreateImageView(ctx->device, &viewInfo, NULL, &ctx->fontImageView);
     free(fontData);
     
     return result;
@@ -204,7 +184,7 @@ static VkResult create_render_pass(XenoHUDContext* ctx, VkFormat swapchainFormat
         .pSubpasses = &subpass
     };
     
-    return g_vk_funcs.vkCreateRenderPass(ctx->device, &renderPassInfo, NULL, &ctx->renderPass);
+    return vkCreateRenderPass(ctx->device, &renderPassInfo, NULL, &ctx->renderPass);
 }
 
 static VkResult create_graphics_pipeline(XenoHUDContext* ctx, VkExtent2D swapchainExtent) {
@@ -256,7 +236,7 @@ static VkResult create_graphics_pipeline(XenoHUDContext* ctx, VkExtent2D swapcha
         .pBindings = &samplerLayoutBinding
     };
     
-    VkResult result = g_vk_funcs.vkCreateDescriptorSetLayout(ctx->device, &layoutInfo, NULL, &ctx->descriptorSetLayout);
+    VkResult result = vkCreateDescriptorSetLayout(ctx->device, &layoutInfo, NULL, &ctx->descriptorSetLayout);
     if (result != VK_SUCCESS) return result;
     
     // Create pipeline layout
@@ -274,7 +254,7 @@ static VkResult create_graphics_pipeline(XenoHUDContext* ctx, VkExtent2D swapcha
         .pPushConstantRanges = &pushConstantRange
     };
     
-    result = g_vk_funcs.vkCreatePipelineLayout(ctx->device, &pipelineLayoutInfo, NULL, &ctx->pipelineLayout);
+    result = vkCreatePipelineLayout(ctx->device, &pipelineLayoutInfo, NULL, &ctx->pipelineLayout);
     if (result != VK_SUCCESS) return result;
     
     // For now, return success. In a complete implementation, you'd create
@@ -340,7 +320,7 @@ XenoHUDContext* xeno_hud_create_context(VkDevice device, VkPhysicalDevice physic
             .layers = 1
         };
         
-        result = g_vk_funcs.vkCreateFramebuffer(ctx->device, &framebufferInfo, NULL, &ctx->framebuffers[i]);
+        result = vkCreateFramebuffer(ctx->device, &framebufferInfo, NULL, &ctx->framebuffers[i]);
         if (result != VK_SUCCESS) {
             XENO_LOGE("hud: failed to create framebuffer %d: %d", i, result);
             goto cleanup;
@@ -363,62 +343,62 @@ void xeno_hud_destroy_context(XenoHUDContext* ctx) {
         if (ctx->framebuffers) {
             for (uint32_t i = 0; i < ctx->swapchainImageCount; i++) {
                 if (ctx->framebuffers[i] != VK_NULL_HANDLE) {
-                    g_vk_funcs.vkDestroyFramebuffer(ctx->device, ctx->framebuffers[i], NULL);
+                    vkDestroyFramebuffer(ctx->device, ctx->framebuffers[i], NULL);
                 }
             }
             free(ctx->framebuffers);
         }
         
         if (ctx->pipeline != VK_NULL_HANDLE) {
-            g_vk_funcs.vkDestroyPipeline(ctx->device, ctx->pipeline, NULL);
+            vkDestroyPipeline(ctx->device, ctx->pipeline, NULL);
         }
         
         if (ctx->pipelineLayout != VK_NULL_HANDLE) {
-            g_vk_funcs.vkDestroyPipelineLayout(ctx->device, ctx->pipelineLayout, NULL);
+            vkDestroyPipelineLayout(ctx->device, ctx->pipelineLayout, NULL);
         }
         
         if (ctx->descriptorSetLayout != VK_NULL_HANDLE) {
-            g_vk_funcs.vkDestroyDescriptorSetLayout(ctx->device, ctx->descriptorSetLayout, NULL);
+            vkDestroyDescriptorSetLayout(ctx->device, ctx->descriptorSetLayout, NULL);
         }
         
         if (ctx->descriptorPool != VK_NULL_HANDLE) {
-            g_vk_funcs.vkDestroyDescriptorPool(ctx->device, ctx->descriptorPool, NULL);
+            vkDestroyDescriptorPool(ctx->device, ctx->descriptorPool, NULL);
         }
         
         if (ctx->renderPass != VK_NULL_HANDLE) {
-            g_vk_funcs.vkDestroyRenderPass(ctx->device, ctx->renderPass, NULL);
+            vkDestroyRenderPass(ctx->device, ctx->renderPass, NULL);
         }
         
         if (ctx->fontImageView != VK_NULL_HANDLE) {
-            g_vk_funcs.vkDestroyImageView(ctx->device, ctx->fontImageView, NULL);
+            vkDestroyImageView(ctx->device, ctx->fontImageView, NULL);
         }
         
         if (ctx->fontImage != VK_NULL_HANDLE) {
-            g_vk_funcs.vkDestroyImage(ctx->device, ctx->fontImage, NULL);
+            vkDestroyImage(ctx->device, ctx->fontImage, NULL);
         }
         
         if (ctx->fontImageMemory != VK_NULL_HANDLE) {
-            g_vk_funcs.vkFreeMemory(ctx->device, ctx->fontImageMemory, NULL);
+            vkFreeMemory(ctx->device, ctx->fontImageMemory, NULL);
         }
         
         if (ctx->fontSampler != VK_NULL_HANDLE) {
-            g_vk_funcs.vkDestroySampler(ctx->device, ctx->fontSampler, NULL);
+            vkDestroySampler(ctx->device, ctx->fontSampler, NULL);
         }
         
         if (ctx->vertexBuffer != VK_NULL_HANDLE) {
-            g_vk_funcs.vkDestroyBuffer(ctx->device, ctx->vertexBuffer, NULL);
+            vkDestroyBuffer(ctx->device, ctx->vertexBuffer, NULL);
         }
         
         if (ctx->vertexBufferMemory != VK_NULL_HANDLE) {
-            g_vk_funcs.vkFreeMemory(ctx->device, ctx->vertexBufferMemory, NULL);
+            vkFreeMemory(ctx->device, ctx->vertexBufferMemory, NULL);
         }
         
         if (ctx->indexBuffer != VK_NULL_HANDLE) {
-            g_vk_funcs.vkDestroyBuffer(ctx->device, ctx->indexBuffer, NULL);
+            vkDestroyBuffer(ctx->device, ctx->indexBuffer, NULL);
         }
         
         if (ctx->indexBufferMemory != VK_NULL_HANDLE) {
-            g_vk_funcs.vkFreeMemory(ctx->device, ctx->indexBufferMemory, NULL);
+            vkFreeMemory(ctx->device, ctx->indexBufferMemory, NULL);
         }
     }
     

@@ -63,7 +63,6 @@ add_library(xeno_wrapper SHARED
     src/logging.c
     src/app_profile.c
     src/hud.c
-    src/vk_funcs.c
     ${SHADER_HEADERS_DIR}/bc4_shader.h
     ${SHADER_HEADERS_DIR}/bc5_shader.h
 )
@@ -71,16 +70,8 @@ add_library(xeno_wrapper SHARED
 target_compile_definitions(xeno_wrapper PRIVATE $<$<BOOL:${XCLIPSE_ENABLE_ANDROID_LOG}>:XCLIPSE_ANDROID_LOG>)
 
 find_package(Threads REQUIRED)
-
-# Allow undefined Vulkan symbols - they'll be resolved at runtime from GameHub's Vulkan loader
-target_link_options(xeno_wrapper PRIVATE "-Wl,--allow-shlib-undefined")
-
 if(UNIX)
-    if(ANDROID)
-        target_link_libraries(xeno_wrapper PRIVATE dl Threads::Threads log)
-    else()
-        target_link_libraries(xeno_wrapper PRIVATE dl Threads::Threads)
-    endif()
+    target_link_libraries(xeno_wrapper PRIVATE dl Threads::Threads)
 endif()
 
 # Add include directory for generated shader headers
@@ -95,16 +86,6 @@ install(TARGETS xeno_wrapper
     LIBRARY DESTINATION usr/lib
 )
 
-# Install metadata
 install(FILES usr/share/meta.json DESTINATION usr/share)
-
-# Install configuration files
 install(FILES etc/exynostools/performance_mode.conf DESTINATION etc/exynostools)
 install(DIRECTORY etc/exynostools/profiles DESTINATION etc/exynostools)
-
-# Install Vulkan layer manifest
-install(FILES vulkan_layer/VkLayer_exynostools.json DESTINATION usr/share/vulkan/implicit_layer.d)
-
-# Install Winlator integration files
-install(FILES winlator/winlator.conf DESTINATION .)
-install(PROGRAMS loader/exynostools-loader.sh DESTINATION .)
